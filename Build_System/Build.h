@@ -62,7 +62,7 @@ class Builder
         void Missing_Path_Date(vector<arr<string,3>>&,vector<string>&);
         void Remove_Dates();
 
-        void Compile_File(string,const string&,const bool& sdl_or_not = false);
+        void Compile_File(string,const string&,const bool& sdl_or_not);
         
         string Get_File_Date(const string&);
         string Get_File_Path(const string&);

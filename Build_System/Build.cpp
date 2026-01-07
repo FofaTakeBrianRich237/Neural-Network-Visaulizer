@@ -45,6 +45,8 @@ void Builder::Load_Options()
 
     file.remove(' ');
 
+    std::cout << "1" << std::endl;
+
     for(int i = 0; i < file.length;)
     {
         if(file[i] == '[')
@@ -69,7 +71,10 @@ void Builder::Load_Options()
     {
         if(Options[i][0] == "sdl")
         {
-            Options[i][1].insert(' ',-5);
+            Options[i][1].insert(' ',-9);
+            Options[i][1].insert(' ',-14);
+            Options[i][1].insert(' ',-21);
+            Options[i][1].insert(' ',-30);
         }
     }
 
@@ -536,7 +541,7 @@ void Builder::Cpp_File_Exist()
 
 void Builder::Search_New_Header_Files() 
 { 
-    string list = Command_Result("find .. -type f -name \"*.h\"");
+    string list = Command_Result("find .. \\( -path \"../externals/SDL\" -o -path \"../externals/SDL3_ttf-3.2.2\"  \\)  -prune -o  -type f -name \"*.h\" -print");
     for(int i = 0; i < list.length; i++)
     {
         if(list[i] == ' ')
@@ -576,7 +581,7 @@ void Builder::Search_New_Header_Files()
 
 void Builder::Search_New_Cpp_Files()
 {
-    string list = Command_Result("find .. -type f -name \"*.cpp\"");
+    string list = Command_Result("find .. \\( -path \"../externals/SDL\" -o -path \"../externals/SDL3_ttf-3.2.2\"  \\) -prune -o  -type f -name \"*.cpp\" -print");
     for(int i = 0; i < list.length; i++)
     {
         if(list[i] == ' ')
@@ -728,7 +733,17 @@ void Builder::Compile_Project()
     std::cout << "Files to compile = " << CppFilesToCompile << std::endl;
     for(int i = 0; i < CppFilesToCompile.size; i++) 
     { 
-        Compile_File(CppFilesToCompile[i][0],CppFilesToCompile[i][1]); 
+        bool found = false;
+
+        for(int j = 0; j < CppFilesDependencies.size; j++)
+        {
+            if(CppFilesDependencies[j].first() == CppFilesToCompile[i][0])
+            {
+                if(CppFilesDependencies[i].second().Belong("SDL.h")) found = true;;
+            }
+        }
+
+        Compile_File(CppFilesToCompile[i][0],CppFilesToCompile[i][1],found); 
         string objFile = CppFilesToCompile[i][0].del(-3).insert_at_end('o');
         if(!ObjectFilesList.Belong(objFile)) ObjectFilesList.add(objFile);
     }
@@ -756,6 +771,7 @@ void Builder::Compile()
 void Builder::build()
 {
     Load_Headerfiles_Logs();
+    
     Search_New_Header_Files();
     Load_Cpp_Files_Dependencies();
     Check_Dependencies_Exist();
@@ -765,6 +781,9 @@ void Builder::build()
     Initialise_Cpp_Files_To_Compile_List();
     Initialise_Object_File_list();
     Load_Options();
+
+    std::cout << "option = " << Options << std::endl;
+
     Compile();
 }
 
@@ -783,7 +802,7 @@ void Builder::run()
     system("bin/" + program_name);
 }
 
-string Builder::Get_File_Path(const string& file_name) { return Command_Result("find .. -name " + file_name).cut(0,-2); }
+string Builder::Get_File_Path(const string& file_name) { return Command_Result("find ..  \\( -path \"../externals/SDL\" -o -path \"../externals/SDL3_ttf-3.2.2\"  \\)  -prune -o  -name " + file_name + " -print").cut(0,-2); }
 
 void Builder::Load_Headerfiles_Logs() { Load_logs("log_files/headers_logs.txt",HeaderFilesLogs,ModifiedHeaderFilesList,&Builder::Header_File_Exist); }
 
