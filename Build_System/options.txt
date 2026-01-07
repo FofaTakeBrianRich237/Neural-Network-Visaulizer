@@ -1,0 +1,7 @@
+std[compiler]  = clang++
+[version] = -std=c++20
+[flags] = -Wall -Wextra -Wpedantic
+[debugging] = -g 
+[sdl] = $(pkg-config --cflags --libs sdl3)
+[path] = ..
+[program] = NNV.exe
