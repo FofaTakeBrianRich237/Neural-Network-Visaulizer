@@ -17,6 +17,22 @@ void Builder::Load_logs(const char* path,vector<arr<string,3>>& FilesLogs,vector
     Missing_Path_Date(FilesLogs,Modif_List);
 }
 
+void Builder::Load_Object_Files()
+{
+    string list = Command_Result("find ../Build_System/bin -type f -name \"*.o\" ");
+    for(int i = 0; i < list.length; i++)
+    {
+        if(list[i] == ' ')
+        {
+            int j; 
+            for(j = i; (j>=0) && (list[j] != '/'); j--)
+            j++;
+
+            ObjectFilesList.add(list.cut(j,i-1));
+        }
+    }
+}
+
 void Builder::Initialise_Object_File_list()
 {
     string list = Command_Result("find bin -type f -name \"*.o\"");
@@ -44,8 +60,6 @@ void Builder::Load_Options()
     Options_File.close();
 
     file.remove(' ');
-
-    std::cout << "1" << std::endl;
 
     for(int i = 0; i < file.length;)
     {
@@ -151,6 +165,34 @@ void Builder::Load_Cpp_Files_Dependencies()
         }
         else i++; 
     }
+    
+    for(int i = 0; i < CppFilesDependencies.size; i++)
+    {
+        bool found = false;
+        for(int j = 0; j < CppFilesLogs.size; j++)
+        {
+            if(CppFilesDependencies[i].first() == CppFilesLogs[j][0])
+            {
+                found = true;
+                break;
+            }
+        }
+        if(!found) CppFilesDependencies.pop(i);
+    }
+
+    for(int i = 0; i < CppFilesLogs.size; i++)
+    {
+        bool found = false;
+        for(int j = 0; j < CppFilesDependencies.size; j++)
+        {
+            if(CppFilesLogs[i][0] == CppFilesDependencies[j].first())
+            {
+                found = true;
+                break;
+            }
+        }
+        if(!found) Add_Cpp_File_Dependencies(CppFilesLogs[i][0]);
+    }
 }
 
 void Builder::Save_Logs(const char* path,vector<arr<string,3>>& FilesLogs)
@@ -158,7 +200,7 @@ void Builder::Save_Logs(const char* path,vector<arr<string,3>>& FilesLogs)
     std::ofstream FL(path);
     for(int i = 0; i < FilesLogs.size; i++)
     {
-        FL << const_char(FilesLogs[i][0] + " ") << const_char(FilesLogs[i][1] + " ") << const_char(FilesLogs[i][2]) << "\n";
+        FL << FilesLogs[i][0] + " " << FilesLogs[i][1] + " " << FilesLogs[i][2] << "\n";
     }
     FL.close();
 }
@@ -226,29 +268,9 @@ string Builder::Command_Result(const string& command)
 
 string Builder::Get_File_Date(const string& path)
 {
-    int start = 0,end = 0;
-    string shell = Command_Result("ls -l " + path);
-
-    for(int count = 0; end < shell.length; end++)
-    {
-        if(shell[end] == ' ' && count != 5) 
-        {
-            count++;    
-            if(count == 5) start = end+1;
-        }
-        else if (shell[end] == '.')
-        {
-            end -= 2;
-            break;
-        }
-    }
-
-    for(int i = start; i < end; i++) 
-    {
-        if(shell[i] == ' ') shell[i] = '_';
-    }
-
-    return shell.cut(start,end);
+    string shell = Command_Result("stat -c \"%y\"  " + path);
+    shell.replace(' ','_');
+    return shell;
 }
 
 void Builder::Update_File_Date(const string& file_name,vector<arr<string,3>>& FilesLogs)
@@ -283,7 +305,6 @@ void Builder::Compile_Build_System()
     Update_File_Date("Build.cpp",CppFilesLogs);
     Update_File_Date("Build.h",HeaderFilesLogs);
 
-    Remove_Dates();
     Save_Cppfiles_Logs();
     Save_Headerfiles_Logs();
 
@@ -294,6 +315,21 @@ void Builder::Compile_Build_System()
 
 void Builder::Check_Dependencies_Exist()
 {
+
+    for(int i = 0; i < CppFilesDependencies.size; i++)
+    {
+        bool found = false;
+        for(int j = 0; j < CppFilesLogs.size; j++)
+        {
+            if(CppFilesDependencies[i].first() == CppFilesLogs[j][0])
+            {
+                found = true;
+                break;
+            }
+        }
+        if(!found) CppFilesDependencies.pop(i);
+    }
+
     for(int i = 0; i < CppFilesDependencies.size; i++)
     {
         if(CppFilesDependencies[i].second().IsEmpty())
@@ -333,6 +369,22 @@ void Builder::Check_Dependencies_Exist()
                 else std::cout << "Invalid or Nonexistant" << std::endl;
             }
         }
+        else
+        {
+            for(int j = 0; j < CppFilesDependencies[i].second().size; j++)
+            {
+                bool found = false;
+                for(int k = 0; k < HeaderFilesLogs.size; k++)
+                {
+                    if(HeaderFilesLogs[k][0] == CppFilesDependencies[i].second()[j])
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) CppFilesDependencies[i].second().pop(j);
+            }
+        }
     }
 }
 
@@ -340,16 +392,15 @@ void Builder::Initialise_Modified_Files_List()
 {
     for(int i = 0; i < HeaderFilesLogs.size; i++)
     {
-        if(HeaderFilesLogs[i][2] != Get_File_Date(HeaderFilesLogs[i][1])) 
+        if(HeaderFilesLogs[i][2] != Get_File_Date(HeaderFilesLogs[i][1]))
         {
             if(!ModifiedHeaderFilesList.Belong(HeaderFilesLogs[i][0])) ModifiedHeaderFilesList.add(HeaderFilesLogs[i][0]) ;
         }
-
     }
 
     for(int i = 0; i < CppFilesLogs.size; i++)
     {
-        if(CppFilesLogs[i][2] != Get_File_Date(CppFilesLogs[i][1])) 
+        if(CppFilesLogs[i][2] != Get_File_Date(CppFilesLogs[i][1]))
         {
             if(!ModifiedCppFilesList.Belong(CppFilesLogs[i][0])) ModifiedCppFilesList.add(CppFilesLogs[i][0]);
         }
@@ -430,112 +481,10 @@ void Builder::Cpp_File_Exist()
         if(!notExist(CppFilesLogs[i][0])) 
         {
             std::cout << "File " + CppFilesLogs[i][0] + " does not exist"  << std::endl;
-            for(int j = 0; j << CppFilesDependencies.size; j++)
-            {
-                if(CppFilesDependencies[j].first() == CppFilesLogs[i][0]) CppFilesDependencies.pop(j);
-            }
             CppFilesLogs.pop(i);
         }  
-        else if(HeaderFilesLogs[i][1] != Get_File_Path(HeaderFilesLogs[i][0]))
-        { HeaderFilesLogs[i][1] = Get_File_Path(HeaderFilesLogs[i][0]); }
-        else 
-        {
-            bool In_dependencies = false;
-            int j;
-            for(j = 0; j < CppFilesDependencies.size; j++)
-            {
-                if(CppFilesDependencies[j].first() == CppFilesLogs[i][0])
-                {
-                    In_dependencies = true;
-                    break;
-                } 
-            }
-
-            if(!In_dependencies)
-            {
-                CppFilesDependencies.add();
-                CppFilesDependencies.last().first() = CppFilesLogs[i][0];
-
-                std::cout << "Enter " + CppFilesLogs[i][0] + " dependeces , enter \"exit\" to stop entering dependencies"  << std::endl;
-
-                auto Is_Header_File = [] (const string& file_name)
-                {
-                    for(int i = 0; i < file_name.length; i++)
-                    {
-                        if((file_name[i] == '.') && (file_name[i+1] == 'h') && (i+2 == file_name.length))
-                        return true;
-                    }
-                    return false;
-                };
-
-                auto Header_File_Exist = [this](const string& file_name)
-                {
-                    for(int i = 0; i < HeaderFilesLogs.size;i++)
-                    {
-                        if(HeaderFilesLogs[i][0] == file_name) return true;
-                    }
-                    return false;
-                };
-
-                string file; 
-                int a = 0;
-                while(true)
-                {
-                    if(a == 0) a++;
-                    else std::cout << "Enter next Dependence" << std::endl;
-
-                    std::cin >> file;
-                    if(file == "exit") break;
-                    if(Is_Header_File(file) && Header_File_Exist(file))
-                    {
-                        CppFilesDependencies.last().second().add(file);
-                    }
-                    else std::cout << "Invalid or Nonexistant" << std::endl;
-                }
-            }
-            else
-            {
-                if(CppFilesDependencies[i].second().IsEmpty())
-                {
-                    std::cout << "Enter " + CppFilesLogs[i][0] + " dependeces , enter \"exit\" to stop entering dependencies"  << std::endl;
-
-                    auto Is_Header_File = [] (const string& file_name)
-                    {
-                        for(int i = 0; i < file_name.length; i++)
-                        {
-                            if((file_name[i] == '.') && (file_name[i+1] == 'h') && (i+2 == file_name.length))
-                            return true;
-                        }
-                        return false;
-                    };
-
-                    auto Header_File_Exist = [this](const string& file_name)
-                    {
-                        for(int i = 0; i < HeaderFilesLogs.size;i++)
-                        {
-                            if(HeaderFilesLogs[i][0] == file_name) return true;
-                        }
-                        return false;
-                    };
-
-                    string file; 
-                    int a = 0;
-                    while(true)
-                    {
-                        if(a == 0) a++;
-                        else std::cout << "Enter next Dependence" << std::endl;
-
-                        std::cin >> file;
-                        if(file == "exit") break;
-                        if(Is_Header_File(file) && Header_File_Exist(file))
-                        {
-                            CppFilesDependencies[j].second().add(file);
-                        }   
-                        else std::cout << "Invalid or Nonexistant" << std::endl;
-                    }
-                }
-            }
-        }
+        else if(CppFilesLogs[i][1] != Get_File_Path(CppFilesLogs[i][0]))
+        { CppFilesLogs[i][1] = Get_File_Path(CppFilesLogs[i][0]); }
     }
 }
 
@@ -577,7 +526,50 @@ void Builder::Search_New_Header_Files()
             }
         }
     }
- }
+}
+
+
+void Builder::Add_Cpp_File_Dependencies(const string& file_name)
+{
+    CppFilesDependencies.add();
+    CppFilesDependencies.last().first() = file_name;
+
+    std::cout << "Enter " + file_name + " dependeces , enter \"exit\" to stop entering dependencies"  << std::endl;
+    auto Is_Header_File = [] (const string& file_name)
+    {
+        for(int i = 0; i < file_name.length; i++)
+        {
+            if((file_name[i] == '.') && (file_name[i+1] == 'h') && (i+2 == file_name.length))
+            return true;
+        }
+        return false;
+    };
+
+    auto Header_File_Exist = [this](const string& file_name)
+    {
+        for(int i = 0; i < HeaderFilesLogs.size;i++)
+        {
+            if(HeaderFilesLogs[i][0] == file_name) return true;
+        }
+        return false;
+    };
+
+    string file; 
+    int a = 0;
+    while(true)
+    {
+        if(a == 0) a++;
+        else std::cout << "Enter next Dependence" << std::endl;
+
+        std::cin >> file;
+        if(file == "exit") break;
+        if(Is_Header_File(file) && Header_File_Exist(file))
+        {
+            CppFilesDependencies.last().second().add(file);
+        }
+        else std::cout << "Invalid or Nonexistant" << std::endl;
+    }
+}
 
 void Builder::Search_New_Cpp_Files()
 {
@@ -611,55 +603,17 @@ void Builder::Search_New_Cpp_Files()
                 CppFilesLogs.last()[1] = list.cut(k,i-1);
                 CppFilesLogs.last()[2] = Get_File_Date(CppFilesLogs.last()[1]);
 
-                CppFilesDependencies.add();
-                CppFilesDependencies.last().first() = CppFilesLogs.last()[0];
-
                 ModifiedCppFilesList.add(CppFilesLogs.last()[0]);
 
                 std::cout << "New Cpp File with name " + CppFilesLogs.last()[0] + " was added " << std::endl;
-                std::cout << "Enter file's dependeces , enter \"exit\" to stop entering dependencies"  << std::endl;
-
-                auto Is_Header_File = [] (const string& file_name)
-                {
-                    for(int i = 0; i < file_name.length; i++)
-                    {
-                        if((file_name[i] == '.') && (file_name[i+1] == 'h') && (i+2 == file_name.length))
-                        return true;
-                    }
-                    return false;
-                };
-
-                auto Header_File_Exist = [this](const string& file_name)
-                {
-                    for(int i = 0; i < HeaderFilesLogs.size;i++)
-                    {
-                        if(HeaderFilesLogs[i][0] == file_name) return true;
-                    }
-                    return false;
-                };
-
-                string file; 
-                int a = 0;
-                while(true)
-                {
-                    if(a == 0) a++;
-                    else std::cout << "Enter next Dependence" << std::endl;
-
-                    std::cin >> file;
-                    if(file == "exit") break;
-                    if(Is_Header_File(file) && Header_File_Exist(file))
-                    {
-                        CppFilesDependencies.last().second().add(file);
-                    }
-                    else std::cout << "Invalid or Nonexistant" << std::endl;
-                }
+                Add_Cpp_File_Dependencies(CppFilesLogs.last()[0]);
             }
         }
     }
 }
 
 
-void Builder::Compile_File(string file_name,const string& path,const bool& sdl_or_not)
+void Builder::Compile_File(string file_name,const string& path)
 {
     string options;
     string sd;
@@ -671,38 +625,34 @@ void Builder::Compile_File(string file_name,const string& path,const bool& sdl_o
             options += Options[i][1];
             options += ' ';
         }
-        else if((Options[i][0] == "sdl") && sdl_or_not)
-        {
-            sd += Options[i][1];
-        }
     }
     string command = options + " -c " + path + " " + sd + " -o " + "bin/" + file_name.del(-3).insert_at_end('o');
     // std::cout << "command = " << command << std::endl;
     system(command);
 }
 
+
 void Builder::Complie_Object_Files()
 {
     string list;
     string options;
-    int position = 0;
+    int position = 0, sdl = 0;
+
     for(int i = 0; i < ObjectFilesList.size; i++) 
-    { 
-        list += " bin/" + ObjectFilesList[i]; 
-        // std::cout << "--- " << ObjectFilesList[i] << std::endl;
-    }
+    { list += " bin/" + ObjectFilesList[i]; }
+
     for(int i = 0; i < Options.size; i++)
     {
-        if(Options[i][0] != "path" && (Options[i][0] != "program") && (Options[i][0] != "sdl"))
+        if(Options[i][0] == "program") position = i;
+        else if(Options[i][0] == "sdl") sdl = i;
+        else if (Options[i][0] != "path") 
         {
             options += Options[i][1];
             options += ' ';
         }
-        else if(Options[i][0] == "program") position = i;
-
     }
-    std::cout << 
-    system(options + list + " -o " + "bin/" + Options[position][1]);
+
+    system(options + list + " " + Options[sdl][1] + " -o " + "bin/" + Options[position][1]);
 }
 
 string Builder::Get_Path(const string& file_name,vector<arr<string,3>>& det)
@@ -730,61 +680,52 @@ string Builder::Get_Date(const string& file_name,vector<arr<string,3>>& det)
 
 void Builder::Compile_Project()
 {
-    std::cout << "Files to compile = " << CppFilesToCompile << std::endl;
     for(int i = 0; i < CppFilesToCompile.size; i++) 
     { 
-        bool found = false;
-
-        for(int j = 0; j < CppFilesDependencies.size; j++)
-        {
-            if(CppFilesDependencies[j].first() == CppFilesToCompile[i][0])
-            {
-                if(CppFilesDependencies[i].second().Belong("SDL.h")) found = true;;
-            }
-        }
-
-        Compile_File(CppFilesToCompile[i][0],CppFilesToCompile[i][1],found); 
+        Compile_File(CppFilesToCompile[i][0],CppFilesToCompile[i][1]); 
         string objFile = CppFilesToCompile[i][0].del(-3).insert_at_end('o');
         if(!ObjectFilesList.Belong(objFile)) ObjectFilesList.add(objFile);
     }
-
-    // std::cout << "i am here" << std::endl;
     
     Complie_Object_Files();
 }
 
+bool Builder::Verfy_If_Build_Files_Modified()
+{
+    if((ModifiedCppFilesList.Belong("Build.cpp") || ModifiedHeaderFilesList.Belong("Build.h")))
+    return true;
+    else return false;
+}
+
 void Builder::Compile()
 {
-    if(!(ModifiedCppFilesList.Belong("Build.cpp") || ModifiedHeaderFilesList.Belong("Build.h")))
-    {
-        Update_Files_Dates();
 
-        Compile_Project();
+    Update_Files_Dates();
 
-        Save_Headerfiles_Logs();
-        Save_Cppfiles_Logs();
-        Save_Cpp_Files_Dependencies();
-    }
-    else Compile_Build_System();
+    Compile_Project();
+
+    Save_Headerfiles_Logs();
+    Save_Cppfiles_Logs();
+    Save_Cpp_Files_Dependencies();
 }
 
 void Builder::build()
 {
     Load_Headerfiles_Logs();
-    
     Search_New_Header_Files();
-    Load_Cpp_Files_Dependencies();
-    Check_Dependencies_Exist();
     Load_Cppfiles_Logs();
+    Load_Cpp_Files_Dependencies();
     Search_New_Cpp_Files();
     Initialise_Modified_Files_List();
-    Initialise_Cpp_Files_To_Compile_List();
-    Initialise_Object_File_list();
-    Load_Options();
-
-    std::cout << "option = " << Options << std::endl;
-
-    Compile();
+    if(Verfy_If_Build_Files_Modified()) Compile_Build_System();
+    else
+    {
+        Check_Dependencies_Exist();
+        Initialise_Cpp_Files_To_Compile_List();
+        Initialise_Object_File_list();
+        Load_Options();
+        Compile();
+    }
 }
 
 void Builder::run()

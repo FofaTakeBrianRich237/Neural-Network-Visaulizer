@@ -30,6 +30,7 @@ class Builder
     private:
         void Load_Headerfiles_Logs();
         void Load_Cppfiles_Logs();
+        void Load_Object_Files();
         void Load_Cpp_Files_Dependencies();
         void Load_Options();
 
@@ -55,14 +56,17 @@ class Builder
         void Compile_Build_System();
         void Complie_Object_Files();
 
+        bool Verfy_If_Build_Files_Modified();
+
     private:
         void Load_logs(const char*,vector<arr<string,3>>&,vector<string>&,void (Builder::*Exist)());
         void Save_Logs(const char*,vector<arr<string,3>>&);
         void Update_File_Date(const string&,vector<arr<string,3>>&);
         void Missing_Path_Date(vector<arr<string,3>>&,vector<string>&);
         void Remove_Dates();
+        void Add_Cpp_File_Dependencies(const string&);
 
-        void Compile_File(string,const string&,const bool& sdl_or_not);
+        void Compile_File(string,const string&);
         
         string Get_File_Date(const string&);
         string Get_File_Path(const string&);

@@ -19,7 +19,7 @@ class string
     public:
         friend std::ostream& operator<<(std::ostream& flux,const string&);
         friend std::istream& operator>>(std::istream& flux, string&);
-        void operator=(const string& st) { copy(st); }
+        string operator=(const string& st) { copy(st); return st;}
         void operator=(const char* st) { copy(st); }
         char& operator[](const int& pos) const { return String[(pos >= 0) ? pos : length + pos]; }
         operator const char*() { return this->String; }
@@ -54,7 +54,6 @@ bool operator!=(const string&, const char*);
 
 string operator+(const string&, const string&);
 
-static const char* const_char(const string& st) { return st.String; }
 
 
 
