@@ -28,19 +28,18 @@ class Builder
         void run();
 
     private:
+        void Load_Cpp_Files_Dependencies();
         void Load_Headerfiles_Logs();
         void Load_Cppfiles_Logs();
-        void Load_Object_Files();
-        void Load_Cpp_Files_Dependencies();
         void Load_Options();
 
+        void Save_Cpp_Files_Dependencies();
         void Save_Headerfiles_Logs();
         void Save_Cppfiles_Logs(); 
-        void Save_Cpp_Files_Dependencies();
 
+        void Check_Dependencies_Exist();
         void Header_File_Exist();
         void Cpp_File_Exist();
-        void Check_Dependencies_Exist();
 
         void Search_New_Header_Files();
         void Search_New_Cpp_Files();
@@ -63,7 +62,6 @@ class Builder
         void Save_Logs(const char*,vector<arr<string,3>>&);
         void Update_File_Date(const string&,vector<arr<string,3>>&);
         void Missing_Path_Date(vector<arr<string,3>>&,vector<string>&);
-        void Remove_Dates();
         void Add_Cpp_File_Dependencies(const string&);
 
         void Compile_File(string,const string&);

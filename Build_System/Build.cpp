@@ -5,8 +5,7 @@ void Builder::Load_logs(const char* path,vector<arr<string,3>>& FilesLogs,vector
     std::ifstream Logs_File(path);
     char f[20],d[40],l[20];
 
-    for(int a = 0; Logs_File >> f >> d >> l; a++)
-    {
+    for(int a = 0; Logs_File >> f >> d >> l; a++) {
         FilesLogs.add();
         FilesLogs[a][0] = f;
         FilesLogs[a][1] = d;
@@ -15,23 +14,7 @@ void Builder::Load_logs(const char* path,vector<arr<string,3>>& FilesLogs,vector
     Logs_File.close();
     (this->*Exist)();
     Missing_Path_Date(FilesLogs,Modif_List);
-}
-
-void Builder::Load_Object_Files()
-{
-    string list = Command_Result("find ../Build_System/bin -type f -name \"*.o\" ");
-    for(int i = 0; i < list.length; i++)
-    {
-        if(list[i] == ' ')
-        {
-            int j; 
-            for(j = i; (j>=0) && (list[j] != '/'); j--)
-            j++;
-
-            ObjectFilesList.add(list.cut(j,i-1));
-        }
-    }
-}
+} 
 
 void Builder::Initialise_Object_File_list()
 {
@@ -44,7 +27,21 @@ void Builder::Initialise_Object_File_list()
             for(j = i; (j >=0) && (list[j] != '/'); j--);
             j++;
 
-            ObjectFilesList.add(list.cut(j,i-1));
+            bool found = false;
+            for(int k = 0; k < CppFilesLogs.size; k++)
+            {
+                if(CppFilesLogs[k][0] == (list.cut(j,i-2)+"cpp"))
+                {
+                    ObjectFilesList.add(list.cut(j,i-1));
+                    found = true;
+                    break;
+                }
+            }
+            if(!found) 
+            {
+                system("rm bin/" + list.cut(j,i-1));
+                std::cout << "File " + list.cut(j,i-1) + " was deleted....." << std::endl;
+            }
         }
     }
 }
@@ -285,14 +282,6 @@ void Builder::Update_File_Date(const string& file_name,vector<arr<string,3>>& Fi
     }
 }
 
-void Builder::Remove_Dates()
-{
-    for(int i = 0; i < HeaderFilesLogs.size; i++)
-    { if(HeaderFilesLogs[i][0] != "Build.h") HeaderFilesLogs[i][2] = "---"; }
-
-    for(int i = 0; i < CppFilesLogs.size; i++)
-    { if(CppFilesLogs[i][0] != "Build.cpp") CppFilesLogs[i][2] = "---"; }
-}
 
 void Builder::Update_Files_Dates()
 {
@@ -531,7 +520,19 @@ void Builder::Search_New_Header_Files()
 
 void Builder::Add_Cpp_File_Dependencies(const string& file_name)
 {
-    CppFilesDependencies.add();
+    bool found = false;
+   for(int  i = 0; i < CppFilesDependencies.size; i++)
+   {
+        if(file_name == CppFilesDependencies[i].first()) 
+        {
+            found = true;
+            break;
+        }
+   }
+
+   if(!found)
+   {
+        CppFilesDependencies.add();
     CppFilesDependencies.last().first() = file_name;
 
     std::cout << "Enter " + file_name + " dependeces , enter \"exit\" to stop entering dependencies"  << std::endl;
@@ -569,6 +570,7 @@ void Builder::Add_Cpp_File_Dependencies(const string& file_name)
         }
         else std::cout << "Invalid or Nonexistant" << std::endl;
     }
+   }
 }
 
 void Builder::Search_New_Cpp_Files()
@@ -583,11 +585,21 @@ void Builder::Search_New_Cpp_Files()
             j++;
             
             bool Not_In_Log = true;
+            bool Not_In_Dependencies = true;
             for(int k = 0; k < CppFilesLogs.size;  k++)
             {
                 if(CppFilesLogs[k][0] == list.cut(j,i-1))
                 {
                     Not_In_Log = false;
+                    break;
+                }
+            }
+
+            for(int k = 0; k < CppFilesDependencies.size; k++)
+            {
+                if(CppFilesDependencies[k].first() == list.cut(j,i-1))
+                {
+                    Not_In_Dependencies = false;
                     break;
                 }
             }
@@ -606,8 +618,8 @@ void Builder::Search_New_Cpp_Files()
                 ModifiedCppFilesList.add(CppFilesLogs.last()[0]);
 
                 std::cout << "New Cpp File with name " + CppFilesLogs.last()[0] + " was added " << std::endl;
-                Add_Cpp_File_Dependencies(CppFilesLogs.last()[0]);
             }
+            if(Not_In_Dependencies) Add_Cpp_File_Dependencies(CppFilesLogs.last()[0]);
         }
     }
 }
@@ -716,6 +728,7 @@ void Builder::build()
     Load_Cppfiles_Logs();
     Load_Cpp_Files_Dependencies();
     Search_New_Cpp_Files();
+    // Load_Object_Files();
     Initialise_Modified_Files_List();
     if(Verfy_If_Build_Files_Modified()) Compile_Build_System();
     else
